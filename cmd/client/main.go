@@ -12,5 +12,5 @@ func main() {
 	filePath := flag.String("filePath", "test/test.txt", "Path to file to send")
 
 	client := client.NewClient(*host, *port)
-	client.SendMessage(*filePath)
+	client.SendMessageByFrame(*filePath)
 }

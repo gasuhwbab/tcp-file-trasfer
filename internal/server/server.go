@@ -1,13 +1,13 @@
 package server
 
 import (
-	"encoding/binary"
-	"io"
 	"log"
 	"net"
 	"os"
 	"path/filepath"
 	"strconv"
+
+	"github.com/gasuhwbab/tcp-file-transfer/internal/proto"
 )
 
 type Server struct {
@@ -31,53 +31,51 @@ func (server *Server) Run() error {
 		if err != nil {
 			log.Printf("Error to create connection %v\n", err)
 		}
-		go server.handleConnection(conn)
+		go server.handleConnectionByFrame(conn)
 	}
 }
 
-func (server *Server) handleConnection(conn net.Conn) {
+func (server *Server) handleConnectionByFrame(conn net.Conn) {
 	defer conn.Close()
 
-	var receivedFileNameLen uint32
-	if err := binary.Read(conn, binary.BigEndian, &receivedFileNameLen); err != nil {
-		log.Printf("Error to read receivedFileNameLen %v\n", err)
-		return
-	}
-
-	receivedFileName := make([]byte, receivedFileNameLen)
-	if _, err := io.ReadFull(conn, receivedFileName); err != nil {
-		log.Printf("Error to read receivedFileName %v\n", err)
-		return
-	}
-	reseivedFileNameStr := filepath.Join("received", string(receivedFileName))
-
-	if err := os.Mkdir("received", 0750); err != nil && !os.IsExist(err) {
-		log.Printf("Error to creato directory %v\n", err)
-		return
-	}
-
-	file, err := os.Create(reseivedFileNameStr)
+	fileNameFrame, err := proto.ReadFrame(conn)
 	if err != nil {
-		log.Printf("Error to create file %v\n", err)
+		log.Printf("error to read fileNameFrame %v", err)
+		return
+	}
+	if fileNameFrame.Typ != proto.TypeFileName {
+		log.Printf("bad frame type")
+		return
+	}
+
+	receivedFileName := filepath.Join("test_received", string(fileNameFrame.Payload))
+	if err := os.Mkdir("test_received", 0750); err != nil && !os.IsExist(err) {
+		log.Printf("error to create directory %v", err)
+		return
+	}
+	file, err := os.Create(receivedFileName)
+	if err != nil {
+		log.Printf("error to create file %v", err)
 		return
 	}
 	defer file.Close()
 
-	buf := make([]byte, 1024)
 	for {
-		n, err := conn.Read(buf)
-		if err == io.EOF {
+		readFrame, err := proto.ReadFrame(conn)
+		if err != nil {
+			log.Printf("error to read frame %v", err)
+			return
+		}
+		if readFrame.Typ == proto.TypeDone {
 			break
 		}
-		if err != nil {
-			log.Printf("Error to read data to buffer %v\n", err)
-			return
-		}
-
-		if _, err := file.Write(buf[:n]); err != nil {
-			log.Printf("Error to write data to file %v\n", err)
-			return
+		if readFrame.Typ == proto.TypeData {
+			chunk := readFrame.Payload
+			if _, err := file.Write(chunk); err != nil {
+				log.Printf("error to write chunk to data")
+				return
+			}
 		}
 	}
-	log.Println("File received and saved")
+	log.Printf("File successfully received")
 }
