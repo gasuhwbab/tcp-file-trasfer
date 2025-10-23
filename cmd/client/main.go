@@ -10,6 +10,7 @@ func main() {
 	host := flag.String("host", "localhost", "Host to connect to server")
 	port := flag.Int("port", 8080, "Port to connect to server")
 	filePath := flag.String("filePath", "test/test.txt", "Path to file to send")
+	flag.Parse()
 
 	client := client.NewClient(*host, *port)
 	client.SendMessageByFrame(*filePath)

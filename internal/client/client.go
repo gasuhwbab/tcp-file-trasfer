@@ -30,6 +30,7 @@ func (client *Client) SendMessageByFrame(filePath string) {
 	conn, err := net.Dial("tcp", client.addr)
 	if err != nil {
 		log.Printf("error to connect to server %v", err)
+		return
 	}
 	defer conn.Close()
 
