@@ -34,37 +34,33 @@ func (client *Client) SendMessageByFrame(filePath string) {
 	}
 	defer conn.Close()
 
-	fileName := filepath.Base(filePath)
-	fileNameLen := uint32(len([]byte(fileName)))
-
-	fileNameFrame := &proto.Frame{
-		Magic:      proto.WireMagic,
-		Version:    proto.Version,
-		Typ:        proto.TypeFileName,
-		HdrLen:     proto.HdrLen,
-		PayloadLen: fileNameLen,
-		Payload:    []byte(fileName),
-	}
-
-	if err = proto.WriteFrame(fileNameFrame, conn); err != nil {
-		log.Printf("error to write fileNameFrame %v", err)
+	// Frame TypeHello
+	if err = proto.WriteFrame(proto.NewFrame(proto.TypeHello, nil), conn); err != nil {
+		log.Printf("Error to writeHelloFrame %v", err)
 		return
 	}
 
-	chunck := make([]byte, 1024)
+	// Frame TypeFileName
+	if err = proto.WriteFrame(
+		proto.NewFrame(proto.TypeFileName, []byte(filepath.Base(filePath))),
+		conn,
+	); err != nil {
+		log.Printf("Error to writeFileNameFrame %v", err)
+		return
+	}
+
+	chunck := make([]byte, 1<<16)
 	for {
 		n, err := file.Read(chunck)
 		if err == io.EOF {
-			doneFrame := &proto.Frame{
-				Magic:      proto.WireMagic,
-				Version:    proto.Version,
-				Typ:        proto.TypeDone,
-				HdrLen:     proto.HdrLen,
-				PayloadLen: 0,
-				Payload:    nil,
+			// Frame TypeDone
+			if n > 0 {
+				if err := proto.WriteFrame(proto.NewFrame(proto.TypeData, chunck[:n]), conn); err != nil {
+					log.Printf("error to write data frame %v", err)
+					return
+				}
 			}
-			err := proto.WriteFrame(doneFrame, conn)
-			if err != nil {
+			if err := proto.WriteFrame(proto.NewFrame(proto.TypeDone, nil), conn); err != nil {
 				log.Printf("error to write doneFrame")
 				return
 			}
@@ -74,17 +70,9 @@ func (client *Client) SendMessageByFrame(filePath string) {
 			log.Printf("error to read data from file %v", err)
 			return
 		}
-		dataFrame := &proto.Frame{
-			Magic:      proto.WireMagic,
-			Version:    proto.Version,
-			Typ:        proto.TypeData,
-			HdrLen:     proto.HdrLen,
-			PayloadLen: uint32(n),
-			Payload:    chunck[:n],
-		}
-		err = proto.WriteFrame(dataFrame, conn)
-		if err != nil {
-			log.Printf("error to write dataFrame %v", err)
+		// Frame TypeData
+		if err := proto.WriteFrame(proto.NewFrame(proto.TypeData, chunck[:n]), conn); err != nil {
+			log.Printf("error to write data frame %v", err)
 			return
 		}
 	}

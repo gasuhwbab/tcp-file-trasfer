@@ -38,24 +38,34 @@ func (server *Server) Run() error {
 func (server *Server) handleConnectionByFrame(conn net.Conn) {
 	defer conn.Close()
 
+	helloFrame, err := proto.ReadFrame(conn)
+	if err != nil {
+		log.Printf("error to head helloframe %v\n", err)
+		return
+	}
+	if helloFrame.Typ != proto.TypeHello {
+		log.Printf("bad type\nexpected: %d, received: %d\n", proto.TypeHello, helloFrame.Typ)
+		return
+	}
+
 	fileNameFrame, err := proto.ReadFrame(conn)
 	if err != nil {
-		log.Printf("error to read fileNameFrame %v", err)
+		log.Printf("error to read fileNameFrame %v\n", err)
 		return
 	}
 	if fileNameFrame.Typ != proto.TypeFileName {
-		log.Printf("bad frame type")
+		log.Printf("bad frame type\n")
 		return
 	}
 
 	receivedFileName := filepath.Join("test_received", string(fileNameFrame.Payload))
 	if err := os.Mkdir("test_received", 0750); err != nil && !os.IsExist(err) {
-		log.Printf("error to create directory %v", err)
+		log.Printf("error to create directory %v\n", err)
 		return
 	}
 	file, err := os.Create(receivedFileName)
 	if err != nil {
-		log.Printf("error to create file %v", err)
+		log.Printf("error to create file %v\n", err)
 		return
 	}
 	defer file.Close()
@@ -63,7 +73,7 @@ func (server *Server) handleConnectionByFrame(conn net.Conn) {
 	for {
 		readFrame, err := proto.ReadFrame(conn)
 		if err != nil {
-			log.Printf("error to read frame %v", err)
+			log.Printf("error to read frame %v\n", err)
 			return
 		}
 		if readFrame.Typ == proto.TypeDone {
@@ -72,10 +82,10 @@ func (server *Server) handleConnectionByFrame(conn net.Conn) {
 		if readFrame.Typ == proto.TypeData {
 			chunk := readFrame.Payload
 			if _, err := file.Write(chunk); err != nil {
-				log.Printf("error to write chunk to data")
+				log.Printf("error to write chunk to data\n")
 				return
 			}
 		}
 	}
-	log.Printf("File successfully received")
+	log.Printf("File successfully received\n")
 }
