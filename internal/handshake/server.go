@@ -54,7 +54,7 @@ func Accpet(conn net.Conn, p ServerParams) (*Approved, error) {
 
 	maxFrame := min(hello.MaxFrame, p.MaxFrame)
 	if maxFrame == 0 || maxFrame < uint32(proto.HdrLen)+1 {
-		maxFrame = uint32(proto.HdrLen)
+		maxFrame = uint32(proto.HdrLen) + 1
 	}
 	maxChunck := min(hello.MaxChunck, p.MaxChunck)
 	if maxChunck == 0 {

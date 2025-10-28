@@ -44,15 +44,16 @@ func Do(conn net.Conn, p ClientParams) (*Approved, error) {
 		return nil, err
 	}
 
-	if p.ConnNonce != [16]byte{} {
+	if p.ConnNonce == [16]byte{} {
 		if _, err := rand.Read(p.ConnNonce[:]); err != nil {
-			return nil, fmt.Errorf("error to create ConnNonce %v\n", err)
+			return nil, fmt.Errorf("error to create ConnNonce %v", err)
 		}
 	}
 
 	hello := proto.Hello{
 		ProtoMinor:    p.ProtoMinor,
 		FlagsRequired: p.FlagsRequired,
+		FlagsOptional: p.FlagsOptional,
 		Pad0:          0,
 		MaxFrame:      p.MaxFrame,
 		MaxChunck:     p.MaxChunck,
@@ -99,7 +100,7 @@ func Do(conn net.Conn, p ClientParams) (*Approved, error) {
 		MaxChunck:    helloAck.MaxChunckAccepted,
 		MaxWindow:    helloAck.MaxWindowAccepted,
 		IdleTimeout:  helloAck.IdleTimeoutAccepted,
-		HeartBeatSec: hello.HeartBeatSec,
+		HeartBeatSec: helloAck.HeartBeatAccpeted,
 		ConnNonce:    p.ConnNonce,
 	}
 	return approved, nil
