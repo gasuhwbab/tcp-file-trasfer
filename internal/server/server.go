@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/gasuhwbab/tcp-file-transfer/internal/handshake"
 	"github.com/gasuhwbab/tcp-file-transfer/internal/proto"
 )
 
@@ -38,13 +39,15 @@ func (server *Server) Run() error {
 func (server *Server) handleConnectionByFrame(conn net.Conn) {
 	defer conn.Close()
 
-	helloFrame, err := proto.ReadFrame(conn)
-	if err != nil {
-		log.Printf("error to head helloframe %v\n", err)
-		return
+	p := handshake.ServerParams{
+		SupportedFeatures: 0,
+		MaxFrame:          proto.MaxPayloadLen + uint32(proto.HdrLen),
+		MaxChunck:         proto.MaxPayloadLen,
+		MaxWindow:         proto.MaxPayloadLen + uint32(proto.HdrLen),
 	}
-	if helloFrame.Typ != proto.TypeHello {
-		log.Printf("bad type\nexpected: %d, received: %d\n", proto.TypeHello, helloFrame.Typ)
+
+	if _, err := handshake.Accpet(conn, p); err != nil {
+		log.Printf("error to accept handshake %v", err)
 		return
 	}
 

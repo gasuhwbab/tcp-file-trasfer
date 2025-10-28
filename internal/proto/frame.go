@@ -6,8 +6,9 @@ import (
 	"io"
 )
 
-var (
-	WireMagic     uint32 = binary.BigEndian.Uint32([]byte("TXT1"))
+var WireMagic uint32 = binary.BigEndian.Uint32([]byte("TXT1"))
+
+const (
 	Version       uint8  = 1
 	HdrLen        uint8  = 11
 	MaxPayloadLen uint32 = 1 << 20
@@ -15,18 +16,20 @@ var (
 
 const (
 	TypeHello    uint8 = 1
-	TypeFileName uint8 = 2
-	TypeData     uint8 = 3
-	TypeDone     uint8 = 4
+	TypeHelloAck uint8 = 2
+	TypeFileName uint8 = 3
+	TypeData     uint8 = 4
+	TypeDone     uint8 = 5
 )
 
 // Errors
 var (
-	ErrNilFrame     = errors.New("nil frame")
-	ErrBadMagic     = errors.New("bad magic")
-	ErrBadVersion   = errors.New("bad version")
-	ErrBadHdrLen    = errors.New("bad header length")
-	ErrLargePayload = errors.New("payload len is too large")
+	ErrNilFrame      = errors.New("nil frame")
+	ErrBadMagic      = errors.New("bad magic")
+	ErrBadVersion    = errors.New("bad version")
+	ErrBadHdrLen     = errors.New("bad header length")
+	ErrBadPayloadLen = errors.New("bad payload len")
+	ErrLargePayload  = errors.New("payload len is too large")
 )
 
 type Frame struct {
@@ -65,6 +68,9 @@ func WriteFrame(frame *Frame, w io.Writer) error {
 	}
 	if frame.HdrLen != HdrLen {
 		return ErrBadHdrLen
+	}
+	if frame.PayloadLen != uint32(len(frame.Payload)) {
+		return ErrBadPayloadLen
 	}
 
 	hdr := make([]byte, frame.HdrLen)
@@ -133,6 +139,9 @@ func ReadFrame(r io.Reader) (*Frame, error) {
 		if _, err := io.ReadFull(r, payload); err != nil {
 			return nil, err
 		}
+	}
+	if payloadLen != uint32(len(payload)) {
+		return nil, ErrBadPayloadLen
 	}
 
 	frame := &Frame{

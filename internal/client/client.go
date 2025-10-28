@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/gasuhwbab/tcp-file-transfer/internal/handshake"
 	"github.com/gasuhwbab/tcp-file-transfer/internal/proto"
 )
 
@@ -34,9 +35,17 @@ func (client *Client) SendMessageByFrame(filePath string) {
 	}
 	defer conn.Close()
 
-	// Frame TypeHello
-	if err = proto.WriteFrame(proto.NewFrame(proto.TypeHello, nil), conn); err != nil {
-		log.Printf("Error to writeHelloFrame %v", err)
+	p := handshake.ClientParams{
+		ProtoMinor:    proto.ProtoMinor,
+		FlagsRequired: 0,
+		FlagsOptional: 0,
+		MaxFrame:      proto.MaxPayloadLen + uint32(proto.HdrLen),
+		MaxChunck:     proto.MaxPayloadLen,
+		MaxWindow:     proto.MaxPayloadLen + uint32(proto.HdrLen),
+	}
+
+	if _, err := handshake.Do(conn, p); err != nil {
+		log.Printf("Error to do handshake %v", err)
 		return
 	}
 
